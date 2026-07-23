@@ -3908,6 +3908,20 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
         ' · ' + (t ? t.slice(0, 5) : '');
     } catch (e) { return d + ' ' + (t || ''); }
   }
+  // Full first-observed date+time for the detail modal's "first heard" field.
+  // Unlike fmtDateLine (recent recordings, no year) this includes the year -
+  // a life-list first-heard can be seasons/years back - and formats the whole
+  // stamp via toLocaleString(BCP47) so date order and 12/24h clock follow the
+  // active locale. d="YYYY-MM-DD", t="HH:MM:SS".
+  function fmtFirstSeen(d, t) {
+    if (!d) return '-';
+    var date = new Date(d + 'T' + (t || '00:00:00'));
+    if (isNaN(date.getTime())) return d + (t ? ' ' + t.slice(0, 5) : '');
+    return date.toLocaleString(BCP47, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    });
+  }
   function rarityLabel(total, firstSeenIso) {
     if (!total) return '-';
     var days = 1;
@@ -4288,7 +4302,7 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
       __root.getElementById('modalAllTime').textContent = fmtN(+s.total || 0);
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       __root.getElementById('modalWindow').textContent = fmtN(winRow ? +winRow.n : 0);
-      __root.getElementById('modalFirstSeen').textContent = s.first_seen ? fmtRecTime(s.first_seen.split(' ')[0], s.first_seen.split(' ')[1]) : '-';
+      __root.getElementById('modalFirstSeen').textContent = s.first_seen ? fmtFirstSeen(s.first_seen.split(' ')[0], s.first_seen.split(' ')[1]) : '-';
       var rar = rarityLabel(+s.total || 0, s.first_seen);
       var rarEl = __root.getElementById('modalRarity');
       rarEl.textContent = rar === '-' ? '-' : tt('rarity.' + rar);
