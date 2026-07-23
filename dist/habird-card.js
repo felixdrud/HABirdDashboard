@@ -3886,10 +3886,14 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
   var modalRecBtn = null;
   var __modalSci = null;   // species currently shown in the detail modal
   function fmtRecTime(d, t) {
-    // d="2026-05-15", t="20:25:29"
+    // Either a date "2026-05-15" with a separate time t="20:25:29", or a
+    // single full timestamp that already carries its own time - e.g.
+    // "2026-07-09T04:47:17+02:00" (ISO, offset) or "2026-07-09 04:47:17".
+    // When d already holds a time, parse the whole string; otherwise the
+    // ISO 'T'/offset would be mangled by appending 'T'+t.
     if (!d) return '-';
-    var date = new Date((d || '') + 'T' + (t || '00:00:00'));
-    if (isNaN(date.getTime())) return d + ' ' + (t || '');
+    var date = /[T ]\d\d:/.test(d) ? new Date(d) : new Date((d || '') + 'T' + (t || '00:00:00'));
+    if (isNaN(date.getTime())) return t ? (d + ' ' + t) : d;
     var now = Date.now();
     var ago = Math.floor((now - date.getTime()) / 1000);
     if (ago < 60) return relTimeAgo(ago, 'second', ago + 's ago');
@@ -3907,20 +3911,6 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
       return date.toLocaleDateString(BCP47, { month: 'short', day: 'numeric' }) +
         ' · ' + (t ? t.slice(0, 5) : '');
     } catch (e) { return d + ' ' + (t || ''); }
-  }
-  // Full first-observed date+time for the detail modal's "first heard" field.
-  // Unlike fmtDateLine (recent recordings, no year) this includes the year -
-  // a life-list first-heard can be seasons/years back - and formats the whole
-  // stamp via toLocaleString(BCP47) so date order and 12/24h clock follow the
-  // active locale. d="YYYY-MM-DD", t="HH:MM:SS".
-  function fmtFirstSeen(d, t) {
-    if (!d) return '-';
-    var date = new Date(d + 'T' + (t || '00:00:00'));
-    if (isNaN(date.getTime())) return d + (t ? ' ' + t.slice(0, 5) : '');
-    return date.toLocaleString(BCP47, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit',
-    });
   }
   function rarityLabel(total, firstSeenIso) {
     if (!total) return '-';
@@ -4302,7 +4292,7 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
       __root.getElementById('modalAllTime').textContent = fmtN(+s.total || 0);
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       __root.getElementById('modalWindow').textContent = fmtN(winRow ? +winRow.n : 0);
-      __root.getElementById('modalFirstSeen').textContent = s.first_seen ? fmtFirstSeen(s.first_seen.split(' ')[0], s.first_seen.split(' ')[1]) : '-';
+      __root.getElementById('modalFirstSeen').textContent = s.first_seen ? fmtRecTime(s.first_seen) : '-';
       var rar = rarityLabel(+s.total || 0, s.first_seen);
       var rarEl = __root.getElementById('modalRarity');
       rarEl.textContent = rar === '-' ? '-' : tt('rarity.' + rar);
