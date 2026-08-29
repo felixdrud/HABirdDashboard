@@ -239,7 +239,10 @@ language: ""                 # UI language override, e.g. "da" - empty = follow
 birdnet_url: ""              # empty = this host, port 8080 (the stock app)
 data_source: auto            # auto | api | ha (see Data sources below)
 history_days: 10             # ha-source span; bounded by recorder retention
-sit_confidence: 0.90         # perched at/above, flying below
+sit_confidence: 0.90         # confidence pose rule: perched at/above, flying below
+bird_pose: confidence        # sit-vs-fly rule: confidence (default) | new (recent
+                             #   arrivals fly, the rest perch) | sit | fly
+                             #   (ring flow overrides it - a wheeling flock flies everyone)
 collage_fill: 0.5            # screen fill 0.1-1.0 (0.5 = half, 1.0 = full; busier = wider)
 size_contrast: 0.5           # how much bigger your most-heard birds are (0.2-0.8; lower = more even)
 collage_shape: cluster       # cluster (one filled flock) | ring (birds scattered around an open centre)
@@ -247,6 +250,11 @@ collage_hole: 0.5            # ring only: open-centre size 0.1-0.7 (bigger = a w
 collage_flow: cw             # ring only: bank birds along the circle (a wheeling flock) - cw | ccw | off
 collage_flow_strength: 1     # ring flow strength 0-1 (1 = full head-to-tail wheel; lower = gentler bank)
 collage_spacing: 0           # gap between birds 0-1 (0 = tightest/default, higher = airier; never overlap)
+bird_names: none             # caption birds with their name (from BirdNET-Go, in its
+                             #   species language) - none (default) | new (only recent
+                             #   first-ever arrivals, badged "new") | all (every bird)
+new_bird_days: 7             # how long a species counts as "new" after its first-ever
+                             #   detection - for the captions, the badge and bird_pose: new
 tap_action: both             # both (open details + play call, default) |
                              #   info (details only) | call (reference call only)
 xeno_canto_key: ""           # free key from xeno-canto.org/account; enables the

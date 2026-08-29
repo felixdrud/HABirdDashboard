@@ -582,6 +582,37 @@
   .gtile.is-hover img {
     filter: drop-shadow(0 3px 10px rgba(26,22,18,0.26)) saturate(1.1);
   }
+  /* Bird-name caption (birdNames 'all'/'new') - hung centred below the
+     tile in the display serif, matching the hover pill's voice. The tile
+     is overflow:visible and pointer-events:none, so the caption never
+     affects packing or the alpha-mask hit-testing; it is drawn over the
+     layout by design and may cross a neighbour on a dense plate. The
+     paper-tinted text-shadow lifts it off any plumage it lands on.
+     Font-size is set per-tile by renderCollage (scales with the bird). */
+  .gtile .gt-name {
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    /* Tiles paint in DOM order, so without this a caption can vanish
+       under a neighbouring bird added later; lift every caption above
+       the artwork (hovered tiles sit at 3, the hover pill at 31). */
+    z-index: 2;
+    margin-top: 0.15em;
+    white-space: nowrap;
+    font: italic 13px/1.25 var(--av-font-display);
+    color: var(--ink-soft);
+    text-shadow: 0 1px 3px var(--paper), 0 0 8px var(--paper);
+  }
+  /* "New" marker: same small-caps voice as the atlas lifer badge, inline
+     before the name. Word (not colour alone) so the meaning survives any
+     palette and reads on the Frame from across a room. */
+  .gtile .gt-name .gt-new {
+    font: 700 0.7em/1 var(--av-font-mono);
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--paper); background: var(--accent);
+    padding: 0.22em 0.6em; border-radius: 999px;
+    margin-right: 0.55em;
+    vertical-align: 0.18em;
+  }
   /* Hover pill - surfaces the windowed count for the bird under the
      cursor. Confirms (Anna's-hummingbird-is-#1 paranoia) that the
      collage scaling reflects the selected window, not all-time. */

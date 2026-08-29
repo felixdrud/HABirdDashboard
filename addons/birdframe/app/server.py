@@ -181,6 +181,13 @@ def _config_js(opts: Options, birdnet_url: str) -> bytes:
         "collageFlow": opts.collage_flow,
         "collageFlowStrength": opts.collage_flow_strength,
         "collageSpacing": opts.collage_spacing,
+        # Name captions ("none"/"new"/"all") + how many days a species
+        # counts as "new" after its first-ever detection (captions, the
+        # "new" badge, and the "new" pose rule all share it).
+        "birdNames": opts.bird_names,
+        "newBirdDays": opts.new_bird_days,
+        # Sit-vs-fly rule: "confidence" | "new" | "sit" | "fly".
+        "birdPose": opts.bird_pose,
         "sitConfidence": opts.sit_confidence,
         "audioBoostDb": 0,
         "tapAction": "info",

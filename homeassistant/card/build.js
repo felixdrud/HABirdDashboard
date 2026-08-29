@@ -275,6 +275,12 @@ var HABIRD_EDITOR_SCHEMA = [
     { name: 'size_contrast', selector: { number: { min: 0, max: 0.8, step: 0.05, mode: 'slider' } } },
     { name: 'paper_texture', selector: { number: { min: 0, max: 0.2, step: 0.01, mode: 'slider' } } },
     { name: 'collage_spacing', selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } },
+    { name: 'bird_names', selector: { select: { mode: 'dropdown', options: [
+      { value: 'none', label: 'None (default)' },
+      { value: 'new', label: 'New birds only' },
+      { value: 'all', label: 'All birds' },
+    ] } } },
+    { name: 'new_bird_days', selector: { number: { min: 1, max: 365, step: 1, mode: 'box', unit_of_measurement: 'days' } } },
   ] },
   { name: 'ring', type: 'expandable', flatten: true, title: 'Ring collage', schema: [
     { name: 'collage_shape', selector: { select: { mode: 'dropdown', options: [
@@ -296,6 +302,12 @@ var HABIRD_EDITOR_SCHEMA = [
       { value: 'call', label: 'Play reference call only' },
     ] } } },
     { name: 'xeno_canto_key', selector: { text: {} } },
+    { name: 'bird_pose', selector: { select: { mode: 'dropdown', options: [
+      { value: 'confidence', label: 'Confidence based (default)' },
+      { value: 'new', label: 'New birds fly' },
+      { value: 'sit', label: 'Only sitting' },
+      { value: 'fly', label: 'Only flying' },
+    ] } } },
     { name: 'sit_confidence', selector: { number: { min: 0, max: 1.01, step: 0.01, mode: 'slider' } } },
     { name: 'audio_boost', selector: { number: { min: 0, max: 48, step: 6, mode: 'slider', unit_of_measurement: 'dB' } } },
     { name: 'image_base', selector: { text: {} } },
@@ -343,6 +355,9 @@ var HABIRD_LABELS = {
   collage_flow: 'Ring flow (spin)',
   collage_flow_strength: 'Flow strength',
   collage_spacing: 'Bird spacing',
+  bird_names: 'Show bird names',
+  new_bird_days: 'New bird window',
+  bird_pose: 'Sitting vs. flying',
   image_base: 'Artwork base URL',
   birdnet_url: 'BirdNET-Go URL',
   api_token: 'BirdNET-Go API token',
@@ -358,7 +373,10 @@ var HABIRD_HELPERS = {
   selector_position: 'Top pairs poorly with a title - both sit centred up top.',
   weather_entity: 'Default (blank): the first weather.* entity found.',
   hide_cursor: 'For wall displays: pointer disappears after 8 s idle.',
-  sit_confidence: 'Birds perch at or above this detection confidence and fly below it. 0 = always perched, 1.01 = always flying.',
+  sit_confidence: 'Confidence-based pose only: birds perch at or above this detection confidence and fly below it. Ignored by the other pose rules.',
+  bird_pose: 'Which rule decides sitting vs. flying. Confidence: perch when heard clearly (the slider below). New birds fly: this week’s arrivals fly, established birds perch. Ring flow overrides this - it flies everyone.',
+  bird_names: 'Caption birds with their name (from BirdNET-Go, in its configured species language). New birds: only species first heard within the window below, each with a small “new” badge. Labels draw over the flock - on a dense plate one can touch a neighbour.',
+  new_bird_days: 'How many days a species counts as “new” after its first-ever detection - for the name captions, the “new” badge, and the “New birds fly” pose. Independent of the card’s time window.',
   audio_boost: "Detection clips are quiet; this boosts playback up to +48 dB (0 dB = off), compressed to curb clipping. Faint clips get much louder; the loudest can distort a little near the top - ease off if so.",
   tap_action: "What tapping a bird does. Default opens the info modal and plays the reference call. Call/both need a Xeno-Canto key; without one they fall back to just opening info.",
   xeno_canto_key: "Default (blank): reference calls off. A free key from xeno-canto.org/account turns them on - a clean example call to compare against your station's own captures.",
@@ -528,6 +546,15 @@ class HABirdCard extends HTMLElement {
       // the card leaves the dashboard, instead of it lingering forever.
       __exposeLiveStop: function (fn) { self._stopLive = fn; },
       sitConfidence: (typeof c.sit_confidence === 'number') ? c.sit_confidence : 0.90,
+      // Pose rule: 'confidence' (the slider above, default) | 'new' (recent
+      // lifelist additions fly, established birds perch) | 'sit' | 'fly'.
+      // Ring flow still overrides - it flies everyone for a coherent wheel.
+      birdPose: c.bird_pose || 'confidence',
+      // Name captions under the birds: 'none' (default) | 'new' | 'all'.
+      // New species carry a "new" badge; "new" = first heard within
+      // new_bird_days days (default 7), independent of the time window.
+      birdNames: c.bird_names || 'none',
+      newBirdDays: (typeof c.new_bird_days === 'number') ? c.new_bird_days : 7,
       wall: {
         clock: !!c.clock,
         weather: !!c.weather,

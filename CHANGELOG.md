@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Bird-name captions.** New `bird_names` option ('none' default / 'new' /
+  'all') on the card, the Bird Frame add-on, and the standalone page
+  (`AV_CONFIG.birdNames`, `?names=` URL override): hangs each bird's
+  BirdNET-Go common name (in its configured species language) below its
+  illustration. Species first heard within the last `new_bird_days` days
+  (default 7, independent of the display window) carry a small "new"
+  badge. Labels draw over the flock - packing, hit-testing and the hover
+  pill are untouched.
+- **Configurable sit-vs-fly rule.** New `bird_pose` option
+  ('confidence' default / 'new' / 'sit' / 'fly') on the same three
+  surfaces: keep the confidence rule, fly only the new arrivals, or force
+  one pose for everyone. Ring flow still overrides it (a wheeling flock
+  flies everyone), and `sit_confidence` now only applies in 'confidence'
+  mode.
+
 ## v1.4.0 — 2026-08-27
 
 ### Added

@@ -173,6 +173,25 @@
   // Perched at/above this best-in-window confidence, flying below it.
   var SIT_CONFIDENCE = (typeof AV_CFG.sitConfidence === 'number') ? AV_CFG.sitConfidence : 0.90;
 
+  // ---- Bird-name captions + pose rule ----
+  // birdNames: 'none' (default - the pre-1.5 look), 'all' (caption every
+  // bird), or 'new' (caption only species first heard within the last
+  // newBirdDays days). "New" is deliberately NOT the atlas lifer rule
+  // (first heard inside the display window): on a 24H wall display that
+  // fires a handful of times a month, so labels would almost never show.
+  // birdPose picks the sit-vs-fly rule; see poseFor() by renderCollage.
+  // Static-page displays can override the caption mode per-URL (?names=all),
+  // like the other collage options; the card feeds its own config.
+  var BIRD_NAMES = (AV_CFG.birdNames === 'all' || AV_CFG.birdNames === 'new')
+    ? AV_CFG.birdNames : 'none';
+  var NEW_BIRD_DAYS = Math.max(1, +AV_CFG.newBirdDays || 7);
+  var BIRD_POSE = { confidence: 1, 'new': 1, sit: 1, fly: 1 }[AV_CFG.birdPose]
+    ? AV_CFG.birdPose : 'confidence';
+  if (window.AV_CONFIG) {
+    var __mNames = String(location.search || '').match(/[?&]names=(all|new|none)/);
+    if (__mNames) BIRD_NAMES = __mNames[1];
+  }
+
   function bgUrl(path) { return BG_BASE + '/api/v2' + path; }
 
   // ---- API token (Private Mode) ----
@@ -1681,11 +1700,14 @@
   var GRID_STRIDE = 4; // viewport px per occupancy cell; smaller = slower
   var COLLAGE_PAD = 3; // breathing room (grid cells) around each bird;
                        // eased on narrow screens where birds are smaller.
-  // Pose is deterministic in this build: a species sits (perched pose) when
-  // its best detection confidence in the current window is >= SIT_CONFIDENCE
-  // (config.js, default 0.96), and flies otherwise - a clear, close bird has
+  // Pose is deterministic in this build - see poseFor() by renderCollage.
+  // The default rule ('confidence'): a species sits (perched pose) when its
+  // best detection confidence in the current window is >= SIT_CONFIDENCE
+  // (config.js, default 0.90), and flies otherwise - a clear, close bird has
   // settled in; a faint maybe is just passing through. Recomputed every
   // render, so a bird "lands" the moment a confident detection arrives.
+  // birdPose swaps the rule: 'new' flies the recent lifelist additions,
+  // 'sit'/'fly' force one pose for everyone.
 
   // Decode and cache each mask once. Sparse cell-list form (only "on"
   // cells) makes collision tests linear in opaque area, not total area.
@@ -1940,6 +1962,39 @@
     return placed;
   }
 
+  // sci -> all-time first-detection ms epoch, from the lifelist (see
+  // recomputeDerived). A species is "new" while that first detection is
+  // within the last NEW_BIRD_DAYS days - independent of the display
+  // window (the atlas lifer badge stays window-relative). Unknown
+  // first_seen (lifelist not loaded yet, demo items) is never "new".
+  var speciesFirstMs = {};
+  function isNewSpecies(sci) {
+    var t = speciesFirstMs[sci];
+    return typeof t === 'number' && t >= Date.now() - NEW_BIRD_DAYS * 86400000;
+  }
+
+  // Sit vs. fly for one species - the single definition both the render
+  // signature and the tile builder use. A bird with no flight render
+  // always perches; ring flow forces flight regardless of the rule so
+  // the wheel stays coherent. Otherwise birdPose picks the rule:
+  //   'confidence' (default) - flies below SIT_CONFIDENCE, perches at or
+  //       above it. A missing confidence (0) perches: older BirdNET-Go
+  //       builds omit max_confidence from some analytics responses, and
+  //       unknown must not read as "uncertain bird".
+  //   'new' - species first heard within NEW_BIRD_DAYS fly (just arrived,
+  //       still passing through), established species perch.
+  //   'sit' / 'fly' - everyone perches / everyone flies.
+  function poseFor(s, flowOn) {
+    var base = slugify(s.sci);
+    if (!DIMS[base + '-2']) return 1;
+    if (flowOn) return 2;
+    if (BIRD_POSE === 'sit') return 1;
+    if (BIRD_POSE === 'fly') return 2;
+    if (BIRD_POSE === 'new') return isNewSpecies(s.sci) ? 2 : 1;
+    var conf = +s.best_conf || 0;
+    return (conf > 0 && conf < SIT_CONFIDENCE) ? 2 : 1;
+  }
+
   var _collageSig = null;
   function renderCollage(items, animate) {
     if (!items.length) {
@@ -2022,11 +2077,16 @@
 
     // The silent poll mostly returns identical data - skip the whole
     // pack/render when nothing that affects layout changed, so the DOM
-    // is left completely untouched (no flicker, no work).
+    // is left completely untouched (no flicker, no work). Pose comes from
+    // poseFor (the same rule the tile builder uses), and each bird's
+    // "new" flag is included so a lifelist landing AFTER the first paint
+    // (it arrives in the same refreshAll batch, but a slow fetch can
+    // straggle) still draws the labels/badges it just made decidable.
     var sig = W + 'x' + H + '|' + JSON.stringify(obstacles) + '|' +
       items.map(function (s) {
-        var c0 = +s.best_conf || 0;
-        return s.sci + ':' + (+s.n || 0) + ':' + ((c0 === 0 || c0 >= SIT_CONFIDENCE) ? 'p' : 'f');
+        return s.sci + ':' + (+s.n || 0) + ':' +
+          (poseFor(s, flowOn) === 2 ? 'f' : 'p') +
+          (isNewSpecies(s.sci) ? ':n' : '');
       }).join(',');
     if (!animate && sig === _collageSig) return;
     _collageSig = sig;
@@ -2061,18 +2121,10 @@
     // without dwarfing it.
     var tiles = items.map(function (s) {
       var base = slugify(s.sci);
-      // Pose: sitting when the window's best confidence clears the
-      // SIT_CONFIDENCE bar, flying otherwise - and flight only if a flight
-      // render exists. Flight uses the <slug>-2 mask/aspect/image so the
-      // wings-spread silhouette nests correctly.
-      // Flight needs a KNOWN low confidence: older BirdNET-Go builds omit
-      // max_confidence from some analytics responses, and an unknown
-      // (0) confidence must not read as "uncertain bird" - perch it.
-      var __conf = +s.best_conf || 0;
-      var pose = (DIMS[base + '-2'] && __conf > 0 && __conf < SIT_CONFIDENCE) ? 2 : 1;
-      // Flow wants a coherent wheel of fliers: force the flight pose for any
-      // species that has one (all bundled species do).
-      if (flowOn && DIMS[base + '-2']) pose = 2;
+      // Pose: poseFor() applies the configured sit-vs-fly rule (and the
+      // ring-flow override). Flight uses the <slug>-2 mask/aspect/image
+      // so the wings-spread silhouette nests correctly.
+      var pose = poseFor(s, flowOn);
       var slug = pose === 2 ? base + '-2' : base;
       var mask = loadMask(slug);
       if (!mask && pose === 2) { pose = 1; slug = base; mask = loadMask(slug); }
@@ -2290,6 +2342,42 @@
       } else if (imgEl.style.transform) {
         imgEl.style.transform = '';
       }
+
+      // Bird-name caption (birdNames 'all'/'new'): a label hung centred
+      // below the tile. The tile box is overflow:visible and pointer-
+      // events:none, so the caption never affects packing, the alpha-mask
+      // hit-testing, or the tile's own size - it's drawn over the layout
+      // by design, and on a dense plate it may cross a neighbour. New
+      // species carry the atlas "new" badge in BOTH modes, so a viewer
+      // can see why some names are marked. Type scales with the tile but
+      // is capped against the viewport (a 4K Frame tile shouldn't get
+      // poster type), and the smallest tiles skip the caption entirely -
+      // there text would just shingle over the flock.
+      var nameEl = btn.querySelector('.gt-name');
+      var isNew = isNewSpecies(s.sci);
+      var nameSize = Math.round(Math.max(10, Math.min(r.fullW * 0.12, H * 0.022)));
+      var wantName = (BIRD_NAMES === 'all' || (BIRD_NAMES === 'new' && isNew))
+        && r.fullW >= 56;
+      if (wantName) {
+        if (!nameEl) {
+          nameEl = document.createElement('span');
+          nameEl.className = 'gt-name';
+          btn.appendChild(nameEl);
+        }
+        var nameHtml = (isNew
+          ? '<em class="gt-new" title="' + esc(tt('atlas.newTitle')) + '">' + esc(tt('atlas.new')) + '</em>'
+          : '') + esc(s.com || s.sci);
+        // Only touch the DOM when the text actually changed (same
+        // reasoning as the img src above - the silent poll is a no-op).
+        if (nameEl.__html !== nameHtml) {
+          nameEl.innerHTML = nameHtml;
+          nameEl.__html = nameHtml;
+        }
+        nameEl.style.fontSize = nameSize + 'px';
+      } else if (nameEl) {
+        btn.removeChild(nameEl);
+      }
+
       if (fresh) {
         collage.appendChild(btn);
         // A mid-session arrival blooms in by itself; the full staggered
@@ -2760,7 +2848,15 @@
     (ts.by_hour || []).forEach(function (r) { byHour[+r.hour] = +r.detections; });
     STATS.byHour = byHour;
     speciesTotals = {};
-    (ll.species || []).forEach(function (s) { speciesTotals[s.sci] = +s.n; });
+    speciesFirstMs = {};
+    (ll.species || []).forEach(function (s) {
+      speciesTotals[s.sci] = +s.n;
+      // First-detection epoch for the "new species" rule (captions + the
+      // 'new' pose mode). Same "YYYY-MM-DD HH:MM:SS" parse as the atlas
+      // lifer badge; an unparsable/absent first_seen just isn't "new".
+      var firstMs = Date.parse(String(s.first_seen || '').replace(' ', 'T'));
+      if (!isNaN(firstMs)) speciesFirstMs[s.sci] = firstMs;
+    });
   }
 
   // Activity heatmap (BirdNET-Go dashboard style): one row per species

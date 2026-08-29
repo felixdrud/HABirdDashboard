@@ -102,6 +102,33 @@ window.AV_CONFIG = {
   // always flies (confidence never exceeds 1.0).
   sitConfidence: 0.90,
 
+  // Pose rule: which logic decides sitting vs. flying. Ring flow
+  // (collageFlow cw/ccw in 'ring' shape) overrides this - it flies every
+  // bird so the wheel stays coherent.
+  //   'confidence' (default) - the sitConfidence rule above.
+  //   'new'  - species first heard within newBirdDays fly (they just
+  //            arrived, still passing through); established species perch.
+  //   'sit'  - everyone always perches.
+  //   'fly'  - everyone always flies (when a flight illustration exists).
+  // sitConfidence only matters in 'confidence' mode.
+  birdPose: 'confidence',
+
+  // Bird-name captions on the collage. 'none' (default) keeps the pure
+  // art look; 'all' hangs each bird's name below it; 'new' captions only
+  // species first heard within the last newBirdDays days. The name is
+  // BirdNET-Go's common name, in the species language BirdNET-Go itself
+  // is configured for. New species carry a small "new" badge (in both
+  // 'all' and 'new' modes). Labels draw over the layout - on a very
+  // dense plate one can cross a neighbouring bird. Per-display override
+  // on the static page: ?names=all / ?names=new / ?names=none.
+  birdNames: 'none',
+
+  // How many days a species counts as "new" after its first-ever
+  // detection - used by birdNames: 'new', the "new" badge, and
+  // birdPose: 'new'. Independent of the collage's time window, so a
+  // 24H display still labels this week's arrivals.
+  newBirdDays: 7,
+
   // Collage fill: how much of the screen the flock claims, as a rough
   // fraction of the viewport area (0.1 - 1.0). 0.5 (the default) targets
   // about half the screen; 1.0 packs the birds nearly edge-to-edge. The

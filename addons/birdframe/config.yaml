@@ -59,10 +59,13 @@ options:
   collage_flow: "cw"
   collage_flow_strength: 1.0
   collage_spacing: 0.0
+  bird_names: "none"
+  new_bird_days: 7
   show_caption: false
   matte: "none"
   # --- What it shows ---
   window_hours: 24
+  bird_pose: "confidence"
   sit_confidence: 0.90
   # --- Updating ---
   interval_minutes: 30
@@ -114,6 +117,15 @@ schema:
   # Gap between birds (any shape; 0 = packed tight [default], 1 = airy).
   # They never overlap regardless - this only tunes the breathing room.
   collage_spacing: "float(0,1)"
+  # Caption birds with their name (BirdNET-Go's common name, in its
+  # configured species language). "none" (default) = pure art, "new" =
+  # only species first heard within new_bird_days (with a "new" badge),
+  # "all" = every bird (new ones still badged).
+  bird_names: "list(none|new|all)"
+  # How many days a species counts as "new" after its first-ever
+  # detection - for the name captions, the "new" badge, and the
+  # "new" pose rule. Independent of the time window below.
+  new_bird_days: "int(1,365)"
   # Show the small "Heard Recently" title (off = pure edge-to-edge art).
   show_caption: "bool"
   # TV border around the image: "none" fills the panel; a Samsung matte name
@@ -122,7 +134,13 @@ schema:
   # ---- What it shows ----
   # Time window the collage summarises: 1H / 12H / 24H / 7D / ALL.
   window_hours: "list(1|12|24|168|1000000)"
-  # Best-confidence threshold above which a species perches (else it flies).
+  # Which rule decides sitting vs. flying: "confidence" (default; the
+  # sit_confidence threshold below), "new" (species first heard within
+  # new_bird_days fly, established birds perch), "sit" / "fly" (everyone).
+  # Ring flow (collage_flow cw/ccw) overrides this - it flies everyone.
+  bird_pose: "list(confidence|new|sit|fly)"
+  # Confidence rule only: a species perches at/above this best-in-window
+  # confidence and flies below it. Ignored by the other pose rules.
   sit_confidence: "float(0,1.01)"
   # ---- Updating ----
   interval_minutes: "int(1,1440)"

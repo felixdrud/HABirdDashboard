@@ -40,6 +40,9 @@ class Options:
     collage_flow: str
     collage_flow_strength: float
     collage_spacing: float
+    bird_names: str
+    new_bird_days: int
+    bird_pose: str
     sit_confidence: float
     wall_clock: bool
     wall_weather: bool
@@ -107,6 +110,15 @@ def load() -> Options:
         collage_flow_strength=float(raw.get("collage_flow_strength", 1.0)),
         # Gap between birds (0-1, default 0 = tightest); never overlap regardless.
         collage_spacing=float(raw.get("collage_spacing", 0.0)),
+        # Name captions under the birds: "none" (default) / "new" / "all".
+        # "New" = first heard within new_bird_days days (badge included),
+        # independent of the window_hours the collage displays.
+        bird_names=str(raw.get("bird_names", "none")).strip(),
+        new_bird_days=int(raw.get("new_bird_days", 7)),
+        # Sit-vs-fly rule: "confidence" (default; sit_confidence threshold),
+        # "new" (recent arrivals fly), "sit" / "fly" (everyone). Ring flow
+        # overrides this in the renderer - it flies everyone.
+        bird_pose=str(raw.get("bird_pose", "confidence")).strip(),
         sit_confidence=float(raw.get("sit_confidence", 0.90)),
         wall_clock=bool(raw.get("wall_clock", True)),
         wall_weather=bool(raw.get("wall_weather", True)),

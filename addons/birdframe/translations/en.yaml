@@ -67,6 +67,22 @@ configuration:
       How much space sits between birds (any shape). They never overlap; 0 (the
       default) packs them tightest and a touch bigger, higher gives more
       breathing room.
+  bird_names:
+    name: Show bird names
+    description: >-
+      Caption birds with their name - BirdNET-Go's common name, in the species
+      language BirdNET-Go is configured for. "none" (default) keeps the pure
+      art look. "new" captions only species first heard within the "New bird
+      window" below, each with a small "new" badge. "all" captions every bird
+      (new ones still badged). Labels draw over the flock, so on a very dense
+      plate one can touch a neighbouring bird.
+  new_bird_days:
+    name: New bird window (days)
+    description: >-
+      How many days a species counts as "new" after its first-ever detection -
+      used by the name captions, the "new" badge, and the "New birds heard"
+      pose rule. Independent of the collage's time window, so a 24H display
+      still labels this week's arrivals.
   show_caption:
     name: Caption
     description: >-
@@ -83,11 +99,20 @@ configuration:
     description: >-
       How far back the collage summarises: 1 = 1H, 12 = 12H, 24 = 24H,
       168 = 7D, 1000000 = ALL.
+  bird_pose:
+    name: Sitting vs. flying
+    description: >-
+      Which rule decides each bird's pose (ring flow overrides it - a wheeling
+      flock flies everyone). "confidence" (default) perches birds heard clearly
+      (the "Perch confidence" threshold below). "new" flies species first heard
+      within the "New bird window" and perches established ones. "sit" / "fly"
+      force one pose for every bird.
   sit_confidence:
     name: Perch confidence
     description: >-
-      A species perches when its best detection confidence in the window is at
-      or above this (0-1.01); below it, it shows its flight pose.
+      Confidence rule only: a species perches when its best detection
+      confidence in the window is at or above this (0-1.01); below it, it shows
+      its flight pose. Ignored by the other pose rules.
   # ---- Updating ----
   interval_minutes:
     name: Update interval (minutes)
