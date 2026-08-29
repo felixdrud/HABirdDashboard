@@ -4096,6 +4096,25 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
     return placed;
   }
 
+  // Where the bird's ink actually ends under a name caption: the lowest
+  // opaque mask row within the middle band of columns, as a fraction of
+  // the mask height. The illustrations are alpha-bbox-cropped, so the
+  // BOX bottom is only guaranteed to touch the bird somewhere - at the
+  // centre the silhouette often recedes well above it (raised wings, a
+  // tail swept to one side), and that empty corner is exactly where the
+  // packer nests a neighbour. Anchoring the caption here tucks it against
+  // the belly/feet instead of into the next bird. Cached per mask.
+  function maskBottomFrac(mask) {
+    if (mask.bottomFrac != null) return mask.bottomFrac;
+    var x0 = mask.w * 0.3, x1 = mask.w * 0.7;
+    var maxY = -1;
+    for (var i = 0; i < mask.cells.length; i++) {
+      var c = mask.cells[i];
+      if (c[0] >= x0 && c[0] <= x1 && c[1] > maxY) maxY = c[1];
+    }
+    return (mask.bottomFrac = maxY < 0 ? 1 : (maxY + 1) / mask.h);
+  }
+
   // sci -> all-time first-detection ms epoch, from the lifelist (see
   // recomputeDerived). A species is "new" while that first detection is
   // within the last NEW_BIRD_DAYS days - independent of the display
@@ -4508,6 +4527,10 @@ function runHABirdApp(__root, __shell, __cardConfig, __imgBase) {
           nameEl.__html = nameHtml;
         }
         nameEl.style.fontSize = nameSize + 'px';
+        // Hug the silhouette: anchor to the bird's lowest ink under the
+        // label (maskBottomFrac) rather than the tile's bottom edge - the
+        // gap between the two is usually a nested neighbour.
+        nameEl.style.top = Math.round(maskBottomFrac(r.mask) * r.fullH) + 'px';
       } else if (nameEl) {
         btn.removeChild(nameEl);
       }
