@@ -1822,41 +1822,67 @@
       if (x1 >= GW) x1 = GW - 1; if (y1 >= GH) y1 = GH - 1;
       return [x0, y0, x1, y1];
     }
+    function labelRange(tile, tx, ty) {
+      // Grid range of the tile's name-caption rect (tile-local t.label,
+      // see computeLabels), clamped. Always axis-aligned - the caption
+      // renders horizontal even under a flow-rotated bird.
+      var lb = tile.label;
+      var x0 = (tx + lb.x) / GRID_STRIDE | 0;
+      var y0 = (ty + lb.y) / GRID_STRIDE | 0;
+      var x1 = (tx + lb.x + lb.w) / GRID_STRIDE | 0;
+      var y1 = (ty + lb.y + lb.h) / GRID_STRIDE | 0;
+      if (x0 < 0) x0 = 0; if (y0 < 0) y0 = 0;
+      if (x1 >= GW) x1 = GW - 1; if (y1 >= GH) y1 = GH - 1;
+      return [x0, y0, x1, y1];
+    }
+    function rangeHits(r) {
+      for (var gy = r[1]; gy <= r[3]; gy++) {
+        var off = gy * GW;
+        for (var gx = r[0]; gx <= r[2]; gx++) {
+          if (grid[off + gx]) return true;
+        }
+      }
+      return false;
+    }
+    function stampRange(r) {
+      // Dilate the stamped footprint by `pad` cells so the next bird can't
+      // pack right up against this one - a uniform gap around every
+      // silhouette. collides() stays unpadded, so the gap is added once.
+      var gy0 = r[1] - pad, gy1 = r[3] + pad;
+      var gx0 = r[0] - pad, gx1 = r[2] + pad;
+      if (gy0 < 0) gy0 = 0; if (gx0 < 0) gx0 = 0;
+      if (gy1 >= GH) gy1 = GH - 1; if (gx1 >= GW) gx1 = GW - 1;
+      for (var gy = gy0; gy <= gy1; gy++) {
+        var off = gy * GW;
+        for (var gx = gx0; gx <= gx1; gx++) grid[off + gx] = 1;
+      }
+    }
     function collides(tile, tx, ty) {
       var xf = tileXf(tile, tx, ty);
       var cells = tile.mask.cells;
       for (var i = 0; i < cells.length; i++) {
-        var r = cellRange(tile, tx, ty, cells[i], xf);
-        for (var gy = r[1]; gy <= r[3]; gy++) {
-          var off = gy * GW;
-          for (var gx = r[0]; gx <= r[2]; gx++) {
-            if (grid[off + gx]) return true;
-          }
-        }
+        if (rangeHits(cellRange(tile, tx, ty, cells[i], xf))) return true;
       }
+      // The name caption packs as part of the bird, so a neighbour can
+      // never land on it (and it can never land on a neighbour).
+      if (tile.label && rangeHits(labelRange(tile, tx, ty))) return true;
       return false;
     }
     function stamp(tile, tx, ty) {
       var xf = tileXf(tile, tx, ty);
       var cells = tile.mask.cells;
       for (var i = 0; i < cells.length; i++) {
-        var r = cellRange(tile, tx, ty, cells[i], xf);
-        // Dilate the stamped footprint by `pad` cells so the next bird can't
-        // pack right up against this one - a uniform gap around every
-        // silhouette. collides() stays unpadded, so the gap is added once.
-        var gy0 = r[1] - pad, gy1 = r[3] + pad;
-        var gx0 = r[0] - pad, gx1 = r[2] + pad;
-        if (gy0 < 0) gy0 = 0; if (gx0 < 0) gx0 = 0;
-        if (gy1 >= GH) gy1 = GH - 1; if (gx1 >= GW) gx1 = GW - 1;
-        for (var gy = gy0; gy <= gy1; gy++) {
-          var off = gy * GW;
-          for (var gx = gx0; gx <= gx1; gx++) grid[off + gx] = 1;
-        }
+        stampRange(cellRange(tile, tx, ty, cells[i], xf));
       }
+      if (tile.label) stampRange(labelRange(tile, tx, ty));
     }
     function offGrid(tile, tx, ty) {
       // True if the rendered tile bbox extends past the viewport.
-      return tx < 0 || ty < 0 || tx + tile.fullW > W || ty + tile.fullH > H;
+      if (tx < 0 || ty < 0 || tx + tile.fullW > W || ty + tile.fullH > H) return true;
+      // The caption counts too, so a bottom-row bird's name can't hang
+      // off the canvas (it could, before labels were packed).
+      var lb = tile.label;
+      return !!lb && (tx + lb.x < 0 || tx + lb.x + lb.w > W || ty + lb.y + lb.h > H);
     }
 
     var cx = W / 2, cy = H / 2;
@@ -1962,23 +1988,83 @@
     return placed;
   }
 
-  // Where the bird's ink actually ends under a name caption: the lowest
-  // opaque mask row within the middle band of columns, as a fraction of
-  // the mask height. The illustrations are alpha-bbox-cropped, so the
-  // BOX bottom is only guaranteed to touch the bird somewhere - at the
-  // centre the silhouette often recedes well above it (raised wings, a
-  // tail swept to one side), and that empty corner is exactly where the
-  // packer nests a neighbour. Anchoring the caption here tucks it against
-  // the belly/feet instead of into the next bird. Cached per mask.
-  function maskBottomFrac(mask) {
-    if (mask.bottomFrac != null) return mask.bottomFrac;
-    var x0 = mask.w * 0.3, x1 = mask.w * 0.7;
-    var maxY = -1;
+  // Per-column bottom edge of a silhouette: bottomProfile[x] = the lowest
+  // opaque row in mask column x (-1 for an empty column). Cached per mask.
+  // Used to anchor a name caption to where the bird's ink actually ends
+  // under the label - the illustrations are alpha-bbox-cropped, so the
+  // BOX bottom is only guaranteed to touch the bird somewhere.
+  function maskBottomProfile(mask) {
+    if (mask.bottomProfile) return mask.bottomProfile;
+    var prof = new Int16Array(mask.w);
+    for (var x = 0; x < mask.w; x++) prof[x] = -1;
     for (var i = 0; i < mask.cells.length; i++) {
       var c = mask.cells[i];
-      if (c[0] >= x0 && c[0] <= x1 && c[1] > maxY) maxY = c[1];
+      if (c[1] > prof[c[0]]) prof[c[0]] = c[1];
     }
-    return (mask.bottomFrac = maxY < 0 ? 1 : (maxY + 1) / mask.h);
+    return (mask.bottomProfile = prof);
+  }
+
+  // Text width of a caption, in px at the given font size. Canvas
+  // measureText when available (the label font stack), else a rough
+  // per-character estimate (jsdom tests stub canvas out).
+  var _labelCtx = null;
+  function measureLabelW(text, px) {
+    if (_labelCtx === null) {
+      try {
+        var cv = document.createElement('canvas');
+        _labelCtx = (cv.getContext && cv.getContext('2d')) || false;
+      } catch (e) { _labelCtx = false; }
+    }
+    if (_labelCtx) {
+      _labelCtx.font = 'italic ' + px + 'px ui-serif, "Iowan Old Style", Georgia, serif';
+      return _labelCtx.measureText(text).width;
+    }
+    return text.length * px * 0.52;
+  }
+
+  // Caption geometry for every tile about to be packed: t.label =
+  // { x, y, w, h, fontSize, isNew } in tile-local px, or null when the
+  // bird gets no caption. The packer reserves exactly this rect (so
+  // neighbours can't land on a name) and the renderer draws exactly it -
+  // one geometry, three consumers. The anchor is the lowest ink within
+  // the columns the label actually SPANS (not just the tile centre), so
+  // a name can't sit across its own bird's low-swept tail or wingtip.
+  // Recomputed on every pack attempt - the shrink-to-fit loop rescales
+  // fullW/fullH, and the font (and thus the measured width) follows.
+  function computeLabels(tiles, H) {
+    tiles.forEach(function (t) {
+      t.label = null;
+      if (BIRD_NAMES === 'none') return;
+      var isNew = isNewSpecies(t.data.sci);
+      if (BIRD_NAMES === 'new' && !isNew) return;
+      // The smallest tiles skip the caption - text under a thumbnail-
+      // sized bird would just shingle over the flock.
+      if (t.fullW < 56) return;
+      var px = Math.round(Math.max(10, Math.min(t.fullW * 0.12, H * 0.022)));
+      var text = t.data.com || t.data.sci;
+      var w = measureLabelW(text, px);
+      // The "new" badge rides before the name: mono uppercase at 0.7em
+      // plus its pill padding and margin, estimated rather than measured.
+      if (isNew) w += (String(tt('atlas.new')).length * 0.62 + 1.9) * 0.7 * px + 0.55 * px;
+      // Cap the reserve at twice the bird's width so one long name under
+      // a small bird can't blow an oversized hole in the collage; the
+      // renderer ellipsizes the drawn caption to the same width.
+      w = Math.min(Math.ceil(w), Math.ceil(t.fullW * 2));
+      var h = Math.ceil(px * 1.5);   // line box + the 0.15em margin-top
+      // Anchor: lowest ink across the label's horizontal span.
+      var prof = maskBottomProfile(t.mask);
+      var colScale = t.mask.w / t.fullW;
+      var c0 = Math.max(0, Math.floor((t.fullW - w) / 2 * colScale));
+      var c1 = Math.min(t.mask.w - 1, Math.ceil((t.fullW + w) / 2 * colScale));
+      var maxY = -1;
+      for (var x = c0; x <= c1; x++) if (prof[x] > maxY) maxY = prof[x];
+      var anchorFrac = maxY < 0 ? 1 : (maxY + 1) / t.mask.h;
+      t.label = {
+        x: Math.round((t.fullW - w) / 2),
+        y: Math.round(anchorFrac * t.fullH),
+        w: w, h: h, fontSize: px, isNew: isNew,
+      };
+    });
   }
 
   // sci -> all-time first-detection ms epoch, from the lifelist (see
@@ -2209,6 +2295,9 @@
     spacing = Math.max(0, Math.min(1, spacing));
     var basePad = Math.max(1, Math.round(spacing * 2 * COLLAGE_PAD));  // 0->1 tight, 0.5->3 default, 1->6 airy
     var pad = narrow ? Math.max(1, basePad - 1) : basePad;
+    // Name captions pack as part of their bird (computeLabels sizes them
+    // from the CURRENT fullW, so this reruns after every shrink below).
+    computeLabels(tiles, H);
     var placed = maskPack(tiles, W, H, xBias, yBias, pad, obstacles, ringMode);
 
     // Scale-to-fit: iterate shrink + repack until every tile lands on
@@ -2224,6 +2313,13 @@
         if (t.x + t.fullW > R) R = t.x + t.fullW;
         if (t.y < T2) T2 = t.y;
         if (t.y + t.fullH > B) B = t.y + t.fullH;
+        // A caption can reach past the tile box (wider than the bird,
+        // and always below it) - the shrink/centre passes must see it.
+        if (t.label) {
+          if (t.x + t.label.x < L) L = t.x + t.label.x;
+          if (t.x + t.label.x + t.label.w > R) R = t.x + t.label.x + t.label.w;
+          if (t.y + t.label.y + t.label.h > B) B = t.y + t.label.y + t.label.h;
+        }
       });
       return { L: L, R: R, T: T2, B: B };
     }
@@ -2242,6 +2338,7 @@
         scale = Math.min(scale, sx, sy);
       }
       tiles.forEach(function (t) { t.fullW *= scale; t.fullH *= scale; });
+      computeLabels(tiles, H);   // font + measured width track the new size
       placed = maskPack(tiles, W, H, xBias, yBias, pad, obstacles, ringMode);
       b = clusterBounds(placed);
     }
@@ -2362,28 +2459,22 @@
         imgEl.style.transform = '';
       }
 
-      // Bird-name caption (birdNames 'all'/'new'): a label hung centred
-      // below the tile. The tile box is overflow:visible and pointer-
-      // events:none, so the caption never affects packing, the alpha-mask
-      // hit-testing, or the tile's own size - it's drawn over the layout
-      // by design, and on a dense plate it may cross a neighbour. New
-      // species carry the atlas "new" badge in BOTH modes, so a viewer
-      // can see why some names are marked. Type scales with the tile but
-      // is capped against the viewport (a 4K Frame tile shouldn't get
-      // poster type), and the smallest tiles skip the caption entirely -
-      // there text would just shingle over the flock.
+      // Bird-name caption (birdNames 'all'/'new'): drawn from the exact
+      // geometry the packer reserved (r.label, see computeLabels) - the
+      // label is part of the bird's packed footprint, so it can't land on
+      // a neighbour and a neighbour can't land on it. Anchored to the
+      // bird's own lowest ink across the label's span, capped at twice
+      // the tile width (ellipsized to match the reserve). New species
+      // carry the atlas "new" badge in BOTH modes, so a viewer can see
+      // why some names are marked. The smallest tiles get no caption.
       var nameEl = btn.querySelector('.gt-name');
-      var isNew = isNewSpecies(s.sci);
-      var nameSize = Math.round(Math.max(10, Math.min(r.fullW * 0.12, H * 0.022)));
-      var wantName = (BIRD_NAMES === 'all' || (BIRD_NAMES === 'new' && isNew))
-        && r.fullW >= 56;
-      if (wantName) {
+      if (r.label) {
         if (!nameEl) {
           nameEl = document.createElement('span');
           nameEl.className = 'gt-name';
           btn.appendChild(nameEl);
         }
-        var nameHtml = (isNew
+        var nameHtml = (r.label.isNew
           ? '<em class="gt-new" title="' + esc(tt('atlas.newTitle')) + '">' + esc(tt('atlas.new')) + '</em>'
           : '') + esc(s.com || s.sci);
         // Only touch the DOM when the text actually changed (same
@@ -2392,11 +2483,9 @@
           nameEl.innerHTML = nameHtml;
           nameEl.__html = nameHtml;
         }
-        nameEl.style.fontSize = nameSize + 'px';
-        // Hug the silhouette: anchor to the bird's lowest ink under the
-        // label (maskBottomFrac) rather than the tile's bottom edge - the
-        // gap between the two is usually a nested neighbour.
-        nameEl.style.top = Math.round(maskBottomFrac(r.mask) * r.fullH) + 'px';
+        nameEl.style.fontSize = r.label.fontSize + 'px';
+        nameEl.style.top = r.label.y + 'px';
+        nameEl.style.maxWidth = r.label.w + 'px';
       } else if (nameEl) {
         btn.removeChild(nameEl);
       }

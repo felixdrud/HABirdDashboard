@@ -582,14 +582,16 @@
   .gtile.is-hover img {
     filter: drop-shadow(0 3px 10px rgba(26,22,18,0.26)) saturate(1.1);
   }
-  /* Bird-name caption (birdNames 'all'/'new') - hung centred below the
-     tile in the display serif, matching the hover pill's voice. The tile
-     is overflow:visible and pointer-events:none, so the caption never
-     affects packing or the alpha-mask hit-testing; it is drawn over the
-     layout by design and may cross a neighbour on a dense plate. The
-     paper-tinted text-shadow lifts it off any plumage it lands on.
-     Font-size is set per-tile by renderCollage (scales with the bird). */
+  /* Bird-name caption (birdNames 'all'/'new') - anchored to the bird's
+     own silhouette in the display serif, matching the hover pill's
+     voice. The packer reserves the caption's exact rect as part of the
+     bird's footprint (computeLabels), so names don't collide with
+     neighbours; top / font-size / max-width are set per-tile by
+     renderCollage from that same geometry, and text longer than the
+     reserve ellipsizes. The paper-tinted text-shadow is a safety net
+     for transition frames. */
   .gtile .gt-name {
+    overflow: hidden; text-overflow: ellipsis;
     position: absolute; top: 100%; left: 50%;
     transform: translateX(-50%);
     /* Tiles paint in DOM order, so without this a caption can vanish
