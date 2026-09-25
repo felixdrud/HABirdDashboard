@@ -60,7 +60,9 @@ options:
   collage_flow_strength: 1.0
   collage_spacing: 0.0
   bird_names: "none"
-  new_bird_days: 7
+  new_badge: false
+  new_gone_days: 30
+  new_shown_days: 3
   show_caption: false
   matte: "none"
   # --- What it shows ---
@@ -119,13 +121,18 @@ schema:
   collage_spacing: "float(0,1)"
   # Caption birds with their name (BirdNET-Go's common name, in its
   # configured species language). "none" (default) = pure art, "new" =
-  # only species first heard within new_bird_days (with a "new" badge),
-  # "all" = every bird (new ones still badged).
+  # only the "new" species (see new_gone_days), "all" = every bird.
   bird_names: "list(none|new|all)"
-  # How many days a species counts as "new" after its first-ever
-  # detection - for the name captions, the "new" badge, and the
-  # "new" pose rule. Independent of the time window below.
-  new_bird_days: "int(1,365)"
+  # Mark "new" species with a small "new" pill - independent of the name
+  # captions above (badge without names, names without badge, or both).
+  new_badge: "bool"
+  # The returning-gap rule: a species is "new" when it is heard again
+  # after at least new_gone_days days of silence (a first-ever bird
+  # always qualifies), and stays "new" for new_shown_days days after the
+  # return - a migrant back from the winter is flagged for a few days,
+  # then blends back in. Both independent of the time window below.
+  new_gone_days: "int(1,3650)"
+  new_shown_days: "int(1,365)"
   # Show the small "Heard Recently" title (off = pure edge-to-edge art).
   show_caption: "bool"
   # TV border around the image: "none" fills the panel; a Samsung matte name

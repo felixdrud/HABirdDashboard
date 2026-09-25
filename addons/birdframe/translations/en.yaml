@@ -72,17 +72,27 @@ configuration:
     description: >-
       Caption birds with their name - BirdNET-Go's common name, in the species
       language BirdNET-Go is configured for. "none" (default) keeps the pure
-      art look. "new" captions only species first heard within the "New bird
-      window" below, each with a small "new" badge. "all" captions every bird
-      (new ones still badged). Labels draw over the flock, so on a very dense
-      plate one can touch a neighbouring bird.
-  new_bird_days:
-    name: New bird window (days)
+      art look. "new" captions only new birds (heard again after a long
+      silence - see the two "new" settings below). "all" captions every bird.
+      The collage reserves space for every caption, so labels never cover a
+      neighbouring bird.
+  new_badge:
+    name: Mark new birds ("new" badge)
     description: >-
-      How many days a species counts as "new" after its first-ever detection -
-      used by the name captions, the "new" badge, and the "New birds heard"
-      pose rule. Independent of the collage's time window, so a 24H display
-      still labels this week's arrivals.
+      Put a small "new" pill on birds heard again after a long silence -
+      returning migrants and first-ever visitors. Works with or without the
+      name captions above.
+  new_gone_days:
+    name: New = silent for at least (days)
+    description: >-
+      A bird counts as "new" when it is heard again after at least this many
+      days of silence. A bird never heard before always qualifies. Default 30 -
+      set 90 to flag only birds gone a whole season.
+  new_shown_days:
+    name: '"New" lasts for (days)'
+    description: >-
+      How long a bird stays marked as "new" after being heard again, before it
+      blends back into the flock. Default 3.
   show_caption:
     name: Caption
     description: >-
@@ -104,9 +114,9 @@ configuration:
     description: >-
       Which rule decides each bird's pose (ring flow overrides it - a wheeling
       flock flies everyone). "confidence" (default) perches birds heard clearly
-      (the "Perch confidence" threshold below). "new" flies species first heard
-      within the "New bird window" and perches established ones. "sit" / "fly"
-      force one pose for every bird.
+      (the "Perch confidence" threshold below). "new" flies the new birds
+      (heard again after a long silence) and perches the established flock.
+      "sit" / "fly" force one pose for every bird.
   sit_confidence:
     name: Perch confidence
     description: >-

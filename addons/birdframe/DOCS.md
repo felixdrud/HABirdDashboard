@@ -80,11 +80,13 @@ already look like a painting, so most setups change little. Most-touched:
 | `collage_flow` | Ring only: bank birds along the circle so the flock wheels around the centre — `cw` / `ccw` / `off`. |
 | `collage_flow_strength` | Ring flow strength (0–1). 1 = full wheel; lower = gentler bank. |
 | `collage_spacing` | Gap between birds (0–1, any shape). Lower = closer/bigger, higher = airier. They never overlap. |
-| `bird_names` | Caption birds with their name (BirdNET-Go's common name, in its species language): `none` (default), `new` (only recent first-ever arrivals, with a "new" badge), or `all` (every bird, new ones still badged). |
-| `new_bird_days` | How many days a species counts as "new" after its first-ever detection (default 7) — for the captions, the badge, and the `new` pose rule. Independent of `window_hours`. |
+| `bird_names` | Caption birds with their name (BirdNET-Go's common name, in its species language): `none` (default), `new` (only the "new" birds), or `all`. The packing reserves space for captions, so they never cover a neighbour. |
+| `new_badge` | Put a small "new" pill on new birds (default off). Independent of `bird_names` — badge without names, names without badge, or both. |
+| `new_gone_days` | A bird is "new" when heard again after at least this many days of silence (default 30; first-ever birds always qualify). Set 90 to flag only birds gone a whole season. |
+| `new_shown_days` | How long a bird stays "new" after being heard again (default 3 days). |
 | `show_caption` | Off (default) = edge-to-edge art, no title. |
 | `window_hours` | Time window: `1`/`12`/`24`/`168`/`1000000` (ALL). |
-| `bird_pose` | Sit-vs-fly rule: `confidence` (default — perch when heard clearly, per `sit_confidence`), `new` (recent arrivals fly, established birds perch), `sit` / `fly` (everyone). Ring flow overrides it. |
+| `bird_pose` | Sit-vs-fly rule: `confidence` (default — perch when heard clearly, per `sit_confidence`), `new` (birds back after a long silence fly, the rest perch), `sit` / `fly` (everyone). Ring flow overrides it. |
 | `interval_minutes` | How often the collage refreshes on the TV. |
 | `active_hours` | e.g. `06:30-22:00`; blank = 24/7. |
 | `resolution` | `3840x2160` (4K Frames) or `1920x1080` (32"/older). |

@@ -604,8 +604,9 @@
     color: var(--ink-soft);
     text-shadow: 0 1px 3px var(--paper), 0 0 8px var(--paper);
   }
-  /* "New" marker: same small-caps voice as the atlas lifer badge, inline
-     before the name. Word (not colour alone) so the meaning survives any
+  /* "New" marker (newBadge): same small-caps voice as the atlas lifer
+     badge, inline before the name - or standing alone (.gt-only) when
+     names are off. Word (not colour alone) so the meaning survives any
      palette and reads on the Frame from across a room. */
   .gtile .gt-name .gt-new {
     font: 700 0.7em/1 var(--av-font-mono);
@@ -615,6 +616,7 @@
     margin-right: 0.55em;
     vertical-align: 0.18em;
   }
+  .gtile .gt-name .gt-new.gt-only { margin-right: 0; }
   /* Hover pill - surfaces the windowed count for the bird under the
      cursor. Confirms (Anna's-hummingbird-is-#1 paranoia) that the
      collage scaling reflects the selected window, not all-time. */

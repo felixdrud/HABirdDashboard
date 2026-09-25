@@ -106,8 +106,8 @@ window.AV_CONFIG = {
   // (collageFlow cw/ccw in 'ring' shape) overrides this - it flies every
   // bird so the wheel stays coherent.
   //   'confidence' (default) - the sitConfidence rule above.
-  //   'new'  - species first heard within newBirdDays fly (they just
-  //            arrived, still passing through); established species perch.
+  //   'new'  - "new" species fly (just back after a long silence - see
+  //            newGoneDays below); the established flock perches.
   //   'sit'  - everyone always perches.
   //   'fly'  - everyone always flies (when a flight illustration exists).
   // sitConfidence only matters in 'confidence' mode.
@@ -115,19 +115,28 @@ window.AV_CONFIG = {
 
   // Bird-name captions on the collage. 'none' (default) keeps the pure
   // art look; 'all' hangs each bird's name below it; 'new' captions only
-  // species first heard within the last newBirdDays days. The name is
-  // BirdNET-Go's common name, in the species language BirdNET-Go itself
-  // is configured for. New species carry a small "new" badge (in both
-  // 'all' and 'new' modes). Labels draw over the layout - on a very
-  // dense plate one can cross a neighbouring bird. Per-display override
-  // on the static page: ?names=all / ?names=new / ?names=none.
+  // the "new" species (see newGoneDays below). The name is BirdNET-Go's
+  // common name, in the species language BirdNET-Go itself is configured
+  // for. The collage packing reserves space for every caption, so labels
+  // never overlap a neighbouring bird. Per-display override on the
+  // static page: ?names=all / ?names=new / ?names=none.
   birdNames: 'none',
 
-  // How many days a species counts as "new" after its first-ever
-  // detection - used by birdNames: 'new', the "new" badge, and
-  // birdPose: 'new'. Independent of the collage's time window, so a
-  // 24H display still labels this week's arrivals.
-  newBirdDays: 7,
+  // Mark "new" species with a small "new" pill at the bird. Independent
+  // of birdNames: badge without names, names without badge, or both
+  // (with names on, the pill rides in front of the name).
+  newBadge: false,
+
+  // What "new" means - the returning-gap rule. A species is new when it
+  // is heard again after at least newGoneDays days of silence (a bird
+  // never heard before qualifies automatically), and it stays new for
+  // newShownDays days after the return. So a migrant back from the
+  // winter is flagged for a few days, then blends back into the flock.
+  // Used by birdNames: 'new', newBadge, and birdPose: 'new'. Both are
+  // independent of the collage's time window. Day-granular BirdNET-Go
+  // analytics make the thresholds fuzzy by up to a day.
+  newGoneDays: 30,
+  newShownDays: 3,
 
   // Collage fill: how much of the screen the flock claims, as a rough
   // fraction of the viewport area (0.1 - 1.0). 0.5 (the default) targets

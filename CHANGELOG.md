@@ -5,18 +5,29 @@
 ### Added
 - **Bird-name captions.** New `bird_names` option ('none' default / 'new' /
   'all') on the card, the Bird Frame add-on, and the standalone page
-  (`AV_CONFIG.birdNames`, `?names=` URL override): hangs each bird's
-  BirdNET-Go common name (in its configured species language) below its
-  illustration. Species first heard within the last `new_bird_days` days
-  (default 7, independent of the display window) carry a small "new"
-  badge. Labels draw over the flock - packing, hit-testing and the hover
-  pill are untouched.
+  (`AV_CONFIG.birdNames`, `?names=` URL override): each bird's BirdNET-Go
+  common name (in its configured species language), anchored to its own
+  silhouette. The collage packing reserves every caption's exact rect as
+  part of its bird's footprint, so labels never cover a neighbouring bird
+  or another label.
+- **"New bird" marking (returning-gap rule).** A species counts as *new*
+  when it is heard again after at least `new_gone_days` days of silence
+  (default 30; first-ever birds always qualify), and stays new for
+  `new_shown_days` days (default 3) - so a migrant back from the winter
+  is flagged for a few days, then blends back into the flock. Two
+  date-ranged BirdNET-Go summary queries bound the gap; nothing is
+  fetched unless a "new" feature is enabled. The new `new_badge` option
+  (default off) puts a small "new" pill on those birds, independently of
+  the name captions - badge without names, names without badge, or both.
 - **Configurable sit-vs-fly rule.** New `bird_pose` option
   ('confidence' default / 'new' / 'sit' / 'fly') on the same three
-  surfaces: keep the confidence rule, fly only the new arrivals, or force
-  one pose for everyone. Ring flow still overrides it (a wheeling flock
-  flies everyone), and `sit_confidence` now only applies in 'confidence'
-  mode.
+  surfaces: keep the confidence rule, fly only the new birds (the
+  returning-gap rule above), or force one pose for everyone. Ring flow
+  still overrides it (a wheeling flock flies everyone), and
+  `sit_confidence` now only applies in 'confidence' mode.
+
+All new options default off/neutral - a default install renders exactly
+as before.
 
 ## v1.4.0 — 2026-08-27
 

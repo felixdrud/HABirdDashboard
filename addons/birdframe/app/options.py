@@ -41,7 +41,9 @@ class Options:
     collage_flow_strength: float
     collage_spacing: float
     bird_names: str
-    new_bird_days: int
+    new_badge: bool
+    new_gone_days: int
+    new_shown_days: int
     bird_pose: str
     sit_confidence: float
     wall_clock: bool
@@ -110,11 +112,15 @@ def load() -> Options:
         collage_flow_strength=float(raw.get("collage_flow_strength", 1.0)),
         # Gap between birds (0-1, default 0 = tightest); never overlap regardless.
         collage_spacing=float(raw.get("collage_spacing", 0.0)),
-        # Name captions under the birds: "none" (default) / "new" / "all".
-        # "New" = first heard within new_bird_days days (badge included),
-        # independent of the window_hours the collage displays.
+        # Name captions under the birds ("none" default / "new" / "all")
+        # and, independently, a "new" pill on the new birds. "New" = the
+        # returning-gap rule: heard again after >= new_gone_days days of
+        # silence (first-ever birds included), flagged for new_shown_days
+        # days. Independent of the window_hours the collage displays.
         bird_names=str(raw.get("bird_names", "none")).strip(),
-        new_bird_days=int(raw.get("new_bird_days", 7)),
+        new_badge=bool(raw.get("new_badge", False)),
+        new_gone_days=int(raw.get("new_gone_days", 30)),
+        new_shown_days=int(raw.get("new_shown_days", 3)),
         # Sit-vs-fly rule: "confidence" (default; sit_confidence threshold),
         # "new" (recent arrivals fly), "sit" / "fly" (everyone). Ring flow
         # overrides this in the renderer - it flies everyone.

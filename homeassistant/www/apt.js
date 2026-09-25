@@ -173,18 +173,27 @@
   // Perched at/above this best-in-window confidence, flying below it.
   var SIT_CONFIDENCE = (typeof AV_CFG.sitConfidence === 'number') ? AV_CFG.sitConfidence : 0.90;
 
-  // ---- Bird-name captions + pose rule ----
-  // birdNames: 'none' (default - the pre-1.5 look), 'all' (caption every
-  // bird), or 'new' (caption only species first heard within the last
-  // newBirdDays days). "New" is deliberately NOT the atlas lifer rule
-  // (first heard inside the display window): on a 24H wall display that
-  // fires a handful of times a month, so labels would almost never show.
+  // ---- Bird-name captions, "new" badge + pose rule ----
+  // birdNames: 'none' (default - the stock look), 'all' (caption every
+  // bird), or 'new' (caption only the "new" species). newBadge marks the
+  // "new" species with a small pill, independently of the names - badge
+  // without names, names without badge, or both.
+  //
+  // "New" is the RETURNING-GAP rule, not the atlas lifer rule: a species
+  // counts as new while its current appearance follows a silence of at
+  // least NEW_GONE_DAYS days (a first-ever bird has been silent forever,
+  // so lifers always qualify), and it stays new for NEW_SHOWN_DAYS days
+  // after it is heard again - so a migrant back from the winter is
+  // flagged for a few days, then blends back into the flock.
+  //
   // birdPose picks the sit-vs-fly rule; see poseFor() by renderCollage.
   // Static-page displays can override the caption mode per-URL (?names=all),
   // like the other collage options; the card feeds its own config.
   var BIRD_NAMES = (AV_CFG.birdNames === 'all' || AV_CFG.birdNames === 'new')
     ? AV_CFG.birdNames : 'none';
-  var NEW_BIRD_DAYS = Math.max(1, +AV_CFG.newBirdDays || 7);
+  var NEW_BADGE = AV_CFG.newBadge === true;
+  var NEW_GONE_DAYS = Math.max(1, +AV_CFG.newGoneDays || 30);
+  var NEW_SHOWN_DAYS = Math.max(1, +AV_CFG.newShownDays || 3);
   var BIRD_POSE = { confidence: 1, 'new': 1, sit: 1, fly: 1 }[AV_CFG.birdPose]
     ? AV_CFG.birdPose : 'confidence';
   if (window.AV_CONFIG) {
@@ -2023,29 +2032,33 @@
   }
 
   // Caption geometry for every tile about to be packed: t.label =
-  // { x, y, w, h, fontSize, isNew } in tile-local px, or null when the
-  // bird gets no caption. The packer reserves exactly this rect (so
-  // neighbours can't land on a name) and the renderer draws exactly it -
-  // one geometry, three consumers. The anchor is the lowest ink within
-  // the columns the label actually SPANS (not just the tile centre), so
-  // a name can't sit across its own bird's low-swept tail or wingtip.
+  // { x, y, w, h, fontSize, name, badge } in tile-local px, or null when
+  // the bird gets no caption at all. The packer reserves exactly this
+  // rect (so neighbours can't land on a name) and the renderer draws
+  // exactly it - one geometry, three consumers. A caption is the name,
+  // the "new" badge, or both - names (birdNames) and the badge (newBadge)
+  // are independent switches. The anchor is the lowest ink within the
+  // columns the label actually SPANS (not just the tile centre), so a
+  // caption can't sit across its own bird's low-swept tail or wingtip.
   // Recomputed on every pack attempt - the shrink-to-fit loop rescales
   // fullW/fullH, and the font (and thus the measured width) follows.
   function computeLabels(tiles, H) {
     tiles.forEach(function (t) {
       t.label = null;
-      if (BIRD_NAMES === 'none') return;
       var isNew = isNewSpecies(t.data.sci);
-      if (BIRD_NAMES === 'new' && !isNew) return;
+      var name = BIRD_NAMES === 'all' || (BIRD_NAMES === 'new' && isNew);
+      var badge = NEW_BADGE && isNew;
+      if (!name && !badge) return;
       // The smallest tiles skip the caption - text under a thumbnail-
       // sized bird would just shingle over the flock.
       if (t.fullW < 56) return;
       var px = Math.round(Math.max(10, Math.min(t.fullW * 0.12, H * 0.022)));
-      var text = t.data.com || t.data.sci;
-      var w = measureLabelW(text, px);
-      // The "new" badge rides before the name: mono uppercase at 0.7em
-      // plus its pill padding and margin, estimated rather than measured.
-      if (isNew) w += (String(tt('atlas.new')).length * 0.62 + 1.9) * 0.7 * px + 0.55 * px;
+      var w = name ? measureLabelW(t.data.com || t.data.sci, px) : 0;
+      // The "new" badge rides before the name (or stands alone): mono
+      // uppercase at 0.7em plus its pill padding, estimated rather than
+      // measured; the trailing margin only exists when a name follows.
+      if (badge) w += (String(tt('atlas.new')).length * 0.62 + 1.9) * 0.7 * px
+        + (name ? 0.55 * px : 0);
       // Cap the reserve at twice the bird's width so one long name under
       // a small bird can't blow an oversized hole in the collage; the
       // renderer ellipsizes the drawn caption to the same width.
@@ -2062,20 +2075,65 @@
       t.label = {
         x: Math.round((t.fullW - w) / 2),
         y: Math.round(anchorFrac * t.fullH),
-        w: w, h: h, fontSize: px, isNew: isNew,
+        w: w, h: h, fontSize: px, name: name, badge: badge,
       };
     });
   }
 
-  // sci -> all-time first-detection ms epoch, from the lifelist (see
-  // recomputeDerived). A species is "new" while that first detection is
-  // within the last NEW_BIRD_DAYS days - independent of the display
-  // window (the atlas lifer badge stays window-relative). Unknown
-  // first_seen (lifelist not loaded yet, demo items) is never "new".
-  var speciesFirstMs = {};
+  // ---- "New" species: the returning-gap rule ----
+  // A species is "new" while its current appearance follows a silence of
+  // at least NEW_GONE_DAYS days, for the first NEW_SHOWN_DAYS days after
+  // it is heard again. Two date-ranged summary fetches bound the gap:
+  //   before = everything up to (today - shown): last_heard there is the
+  //            most recent detection OLDER than the shown window;
+  //   since  = the last shown days: first_heard there is when the current
+  //            appearance started.
+  // new <=> heard in `since` AND (absent from `before` - a first-ever
+  // bird has been silent forever - OR the jump from before.last_heard to
+  // since.first_heard spans the gone threshold). Once the return is older
+  // than the shown window, `before` absorbs it and the gap collapses -
+  // the flag expires by itself. Day-granular ranges make the edges fuzzy
+  // by up to a day; the half-day slack errs toward flagging.
+  // The map stays null until the fetches land (or when they fail, e.g.
+  // the HA-history data source, which can't see far enough back to prove
+  // a gap) - unknown is never "new".
+  var speciesNewMap = null;   // sci -> true while the species counts as new
   function isNewSpecies(sci) {
-    var t = speciesFirstMs[sci];
-    return typeof t === 'number' && t >= Date.now() - NEW_BIRD_DAYS * 86400000;
+    return !!(speciesNewMap && speciesNewMap[sci]);
+  }
+  function newRuleActive() {
+    return NEW_BADGE || BIRD_NAMES === 'new' || BIRD_POSE === 'new';
+  }
+  function refreshNewMap() {
+    // Nothing in the config shows "new" -> zero extra requests.
+    if (!newRuleActive()) return Promise.resolve(null);
+    var now = new Date();
+    var edge = new Date(now.getTime() - NEW_SHOWN_DAYS * 86400000);
+    return Promise.all([
+      bgMemoJson('/analytics/species/summary?start_date=2000-01-01&end_date='
+        + bgDateStr(edge), 3600000).catch(function () { return null; }),
+      bgMemoJson('/analytics/species/summary?start_date=' + bgDateStr(edge)
+        + '&end_date=' + bgDateStr(now)).catch(function () { return null; }),
+    ]).then(function (parts) {
+      // A failed `before` fetch must NOT read as "empty station" - that
+      // would flag every bird as a lifer. Unknown -> nothing is new.
+      if (!parts[0] || !parts[1]) { speciesNewMap = null; return null; }
+      var lastBefore = {};
+      parts[0].forEach(function (r) {
+        var t = Date.parse(String(r.last_heard || '').replace(' ', 'T'));
+        if (!isNaN(t)) lastBefore[r.scientific_name] = t;
+      });
+      var goneMs = (NEW_GONE_DAYS - 0.5) * 86400000;
+      var map = {};
+      parts[1].forEach(function (r) {
+        var first = Date.parse(String(r.first_heard || '').replace(' ', 'T'));
+        if (isNaN(first)) return;
+        var prev = lastBefore[r.scientific_name];
+        if (prev == null || first - prev >= goneMs) map[r.scientific_name] = true;
+      });
+      speciesNewMap = map;
+      return map;
+    });
   }
 
   // Sit vs. fly for one species - the single definition both the render
@@ -2086,8 +2144,9 @@
   //       above it. A missing confidence (0) perches: older BirdNET-Go
   //       builds omit max_confidence from some analytics responses, and
   //       unknown must not read as "uncertain bird".
-  //   'new' - species first heard within NEW_BIRD_DAYS fly (just arrived,
-  //       still passing through), established species perch.
+  //   'new' - "new" species fly (just back after a long silence, still
+  //       passing through - see the returning-gap rule above), the
+  //       established flock perches.
   //   'sit' / 'fly' - everyone perches / everyone flies.
   function poseFor(s, flowOn) {
     var base = slugify(s.sci);
@@ -2459,14 +2518,13 @@
         imgEl.style.transform = '';
       }
 
-      // Bird-name caption (birdNames 'all'/'new'): drawn from the exact
+      // Bird caption (name and/or "new" badge): drawn from the exact
       // geometry the packer reserved (r.label, see computeLabels) - the
       // label is part of the bird's packed footprint, so it can't land on
       // a neighbour and a neighbour can't land on it. Anchored to the
       // bird's own lowest ink across the label's span, capped at twice
-      // the tile width (ellipsized to match the reserve). New species
-      // carry the atlas "new" badge in BOTH modes, so a viewer can see
-      // why some names are marked. The smallest tiles get no caption.
+      // the tile width (ellipsized to match the reserve). The smallest
+      // tiles get no caption.
       var nameEl = btn.querySelector('.gt-name');
       if (r.label) {
         if (!nameEl) {
@@ -2474,9 +2532,10 @@
           nameEl.className = 'gt-name';
           btn.appendChild(nameEl);
         }
-        var nameHtml = (r.label.isNew
-          ? '<em class="gt-new" title="' + esc(tt('atlas.newTitle')) + '">' + esc(tt('atlas.new')) + '</em>'
-          : '') + esc(s.com || s.sci);
+        var nameHtml = (r.label.badge
+          ? '<em class="gt-new' + (r.label.name ? '' : ' gt-only')
+            + '" title="' + esc(tt('atlas.newTitle')) + '">' + esc(tt('atlas.new')) + '</em>'
+          : '') + (r.label.name ? esc(s.com || s.sci) : '');
         // Only touch the DOM when the text actually changed (same
         // reasoning as the img src above - the silent poll is a no-op).
         if (nameEl.__html !== nameHtml) {
@@ -2960,15 +3019,7 @@
     (ts.by_hour || []).forEach(function (r) { byHour[+r.hour] = +r.detections; });
     STATS.byHour = byHour;
     speciesTotals = {};
-    speciesFirstMs = {};
-    (ll.species || []).forEach(function (s) {
-      speciesTotals[s.sci] = +s.n;
-      // First-detection epoch for the "new species" rule (captions + the
-      // 'new' pose mode). Same "YYYY-MM-DD HH:MM:SS" parse as the atlas
-      // lifer badge; an unparsable/absent first_seen just isn't "new".
-      var firstMs = Date.parse(String(s.first_seen || '').replace(' ', 'T'));
-      if (!isNaN(firstMs)) speciesFirstMs[s.sci] = firstMs;
-    });
+    (ll.species || []).forEach(function (s) { speciesTotals[s.sci] = +s.n; });
   }
 
   // Activity heatmap (BirdNET-Go dashboard style): one row per species
@@ -3513,6 +3564,10 @@
       vvEnabled()
         ? vvRecent(forHours).catch(function () { return null; })
         : Promise.resolve(null),
+      // "New" species map (returning-gap rule) - resolved before the
+      // renders below so badges/labels/poses are right on first paint.
+      // A no-op (and zero requests) unless the config shows "new" birds.
+      refreshNewMap().catch(function () { return null; }),
     ]).then(function (parts) {
       apiPrivateMode = authFailed;
       DATA.stats = parts[0];
