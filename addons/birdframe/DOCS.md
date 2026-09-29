@@ -85,6 +85,7 @@ already look like a painting, so most setups change little. Most-touched:
 | `new_shown_days` | How long a bird stays "new" after being heard again (default 3 days). |
 | `new_badge` | Put a small "new" pill on new birds (default off). Independent of `bird_names` — badge without names, names without badge, or both. |
 | `show_caption` | Off (default) = edge-to-edge art, no title. |
+| `language` | Language for the words the painting itself can show (the "new" badge, the caption) — blank = English, or a code like `da` / `de`. Bird names follow BirdNET-Go's own language setting. |
 | `window_hours` | Time window: `1`/`12`/`24`/`168`/`1000000` (ALL). |
 | `bird_pose` | Sit-vs-fly rule: `confidence` (default — perch when heard clearly, per `sit_confidence`), `new` (birds back after a long silence fly, the rest perch), `sit` / `fly` (everyone). Ring flow overrides it. |
 | `interval_minutes` | How often the collage refreshes on the TV. |

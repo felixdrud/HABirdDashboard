@@ -3,6 +3,7 @@
 Routes:
   Renderer (used by the in-container Chromium, direct on 127.0.0.1):
     /index.html, /styles.css, /masks.js, /apt.js, /favicon.png   harness (copy)
+    /i18n/<code>.js                                              translation tables
     /config.js                                                   generated from options
     /assets/{illustrations,cutouts}/<slug>.png                   CDN fall-through cache
 
@@ -20,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -162,6 +164,11 @@ def _config_js(opts: Options, birdnet_url: str) -> bytes:
     """Generate the window.AV_CONFIG the harness reads (replaces config.js)."""
     cfg = {
         "birdnetGoUrl": birdnet_url,
+        # UI language for the few words the painting itself can show (the
+        # "new" badge, the optional caption). Blank = auto, which in the
+        # headless renderer means English - the container browser has no
+        # user locale. Bird names are BirdNET-Go's own and unaffected.
+        "language": opts.language,
         # Force the REST path; the HA-history fallback needs a token we don't
         # wire up for the renderer.
         "dataSource": "api",
@@ -264,6 +271,21 @@ def make_server(opts: Options, birdnet_url: str, trigger: threading.Event,
                         self._send(200, ctype, fh.read())
                 except OSError:
                     self._send(404, "text/plain", b"not found")
+                return
+            # Translation tables - index.html's i18n bootstrap fetches
+            # ./i18n/en.js plus the configured/detected language. Without
+            # this route every tt() string (the "new" badge, the optional
+            # caption) rendered as its raw key on the Frame.
+            if path.startswith("/i18n/"):
+                lang_file = path[len("/i18n/"):]
+                if re.fullmatch(r"[a-z0-9-]{1,20}\.js", lang_file):
+                    try:
+                        with open(os.path.join(WWW_DIR, "i18n", lang_file), "rb") as fh:
+                            self._send(200, "application/javascript; charset=utf-8", fh.read())
+                            return
+                    except OSError:
+                        pass
+                self._send(404, "text/plain", b"not found")
                 return
             if path.startswith("/assets/"):
                 parts = path.split("/")  # ['', 'assets', kind, filename]

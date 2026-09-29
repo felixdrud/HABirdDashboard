@@ -29,6 +29,15 @@
 All new options default off/neutral - a default install renders exactly
 as before.
 
+### Fixed
+- **Add-on: translation tables now served.** The add-on's renderer server
+  had no `/i18n/` route, so every `tt()` string rendered as its raw key -
+  the "new" badge said "ATLAS.NEW" on the Frame. The route is added, and
+  a new add-on `language` option (blank = English) picks the language for
+  the on-frame words (the badge, the optional caption); the headless
+  browser has no user locale to auto-detect. Bird names still come from
+  BirdNET-Go's own language setting.
+
 ## v1.4.0 — 2026-08-27
 
 ### Added

@@ -104,6 +104,13 @@ configuration:
     description: >-
       Border the TV draws around the image. "none" (default) fills the whole
       panel; a Samsung matte name like "shadowbox" gives a framed-print look.
+  language:
+    name: Display language
+    description: >-
+      Language for the few words the painting itself can show - the "new"
+      badge and the optional caption. Blank = English. Use a code like "da" or
+      "de" (any of the card's shipped translations). Bird names come from
+      BirdNET-Go's own language setting and are not affected.
   # ---- What it shows ----
   window_hours:
     name: Time window

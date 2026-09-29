@@ -67,6 +67,7 @@ options:
   new_badge: false
   show_caption: false
   matte: "none"
+  language: ""
   # --- What it shows ---
   window_hours: 24
   bird_pose: "confidence"
@@ -143,6 +144,11 @@ schema:
   # TV border around the image: "none" fills the panel; a Samsung matte name
   # (e.g. "shadowbox") gives a framed-print look.
   matte: "str"
+  # Language for the few words the painting itself can show - the "new"
+  # badge and the optional caption. Blank = English. A code like "da" or
+  # "de" (any language the card ships translations for). Bird names come
+  # from BirdNET-Go's own language setting and are unaffected.
+  language: "str?"
   # ---- What it shows ----
   # Time window the collage summarises: 1H / 12H / 24H / 7D / ALL.
   window_hours: "list(1|12|24|168|1000000)"

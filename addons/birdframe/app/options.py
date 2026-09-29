@@ -40,6 +40,7 @@ class Options:
     collage_flow: str
     collage_flow_strength: float
     collage_spacing: float
+    language: str
     bird_names: str
     new_badge: bool
     new_gone_days: int
@@ -117,6 +118,10 @@ def load() -> Options:
         # returning-gap rule: heard again after >= new_gone_days days of
         # silence (first-ever birds included), flagged for new_shown_days
         # days. Independent of the window_hours the collage displays.
+        # UI language for the on-frame words (the "new" badge, the
+        # optional caption) - blank = English. Bird names always come from
+        # BirdNET-Go's own species-language setting, not this.
+        language=str(raw.get("language", "")).strip().lower(),
         bird_names=str(raw.get("bird_names", "none")).strip(),
         new_badge=bool(raw.get("new_badge", False)),
         new_gone_days=int(raw.get("new_gone_days", 30)),
