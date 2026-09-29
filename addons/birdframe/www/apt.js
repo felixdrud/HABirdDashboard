@@ -2017,6 +2017,7 @@
   // measureText when available (the label font stack), else a rough
   // per-character estimate (jsdom tests stub canvas out).
   var _labelCtx = null;
+  var _labelFont = null;
   function measureLabelW(text, px) {
     if (_labelCtx === null) {
       try {
@@ -2025,8 +2026,30 @@
       } catch (e) { _labelCtx = false; }
     }
     if (_labelCtx) {
-      _labelCtx.font = 'italic ' + px + 'px ui-serif, "Iowan Old Style", Georgia, serif';
-      return _labelCtx.measureText(text).width;
+      if (!_labelFont) {
+        // Measure with the font a caption ACTUALLY renders in, read off a
+        // throwaway .gt-name probe. The stack differs per build - the
+        // card's default follows HA's sans font, the static page uses the
+        // display serif - and measuring the wrong one under-reserves by a
+        // few px, which text-overflow then punishes with an ellipsis that
+        // eats two more characters than the shortfall.
+        var style = 'italic', family = 'ui-serif, "Iowan Old Style", Georgia, serif';
+        try {
+          var probe = document.createElement('span');
+          probe.className = 'gt-name';
+          probe.style.visibility = 'hidden';
+          probe.style.position = 'absolute';
+          collage.appendChild(probe);
+          var cs = window.getComputedStyle(probe);
+          if (cs && cs.fontFamily) { style = cs.fontStyle || style; family = cs.fontFamily; }
+          collage.removeChild(probe);
+        } catch (e) { /* keep the defaults */ }
+        _labelFont = { style: style, family: family };
+      }
+      _labelCtx.font = _labelFont.style + ' ' + px + 'px ' + _labelFont.family;
+      // Small safety margin: a hairline mismatch (kerning, synthetic
+      // italic) must never trip the ellipsis.
+      return _labelCtx.measureText(text).width * 1.04 + 2;
     }
     return text.length * px * 0.52;
   }
