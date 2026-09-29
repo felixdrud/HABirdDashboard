@@ -280,11 +280,17 @@ var HABIRD_EDITOR_SCHEMA = [
       { value: 'new', label: 'New birds only' },
       { value: 'all', label: 'All birds' },
     ] } } },
-    { name: 'new_badge', selector: { boolean: {} } },
+  ] },
+  // ONE definition of a "new" bird (the returning-gap rule), and the
+  // features built on it. "New birds only" names above and the "New birds
+  // fly" pose below reference this same definition - isNewSpecies() in
+  // the renderer is the single implementation.
+  { name: 'newbirds', type: 'expandable', flatten: true, title: 'New birds', schema: [
     { name: '', type: 'grid', schema: [
       { name: 'new_gone_days', selector: { number: { min: 1, max: 3650, step: 1, mode: 'box', unit_of_measurement: 'days' } } },
       { name: 'new_shown_days', selector: { number: { min: 1, max: 365, step: 1, mode: 'box', unit_of_measurement: 'days' } } },
     ] },
+    { name: 'new_badge', selector: { boolean: {} } },
   ] },
   { name: 'ring', type: 'expandable', flatten: true, title: 'Ring collage', schema: [
     { name: 'collage_shape', selector: { select: { mode: 'dropdown', options: [
@@ -360,9 +366,9 @@ var HABIRD_LABELS = {
   collage_flow_strength: 'Flow strength',
   collage_spacing: 'Bird spacing',
   bird_names: 'Show bird names',
-  new_badge: 'Mark new birds ("new" badge)',
+  new_badge: 'Show the "new" badge',
   new_gone_days: 'New = silent for at least',
-  new_shown_days: '"New" lasts for',
+  new_shown_days: 'Stays new for',
   bird_pose: 'Sitting vs. flying',
   image_base: 'Artwork base URL',
   birdnet_url: 'BirdNET-Go URL',
@@ -380,11 +386,11 @@ var HABIRD_HELPERS = {
   weather_entity: 'Default (blank): the first weather.* entity found.',
   hide_cursor: 'For wall displays: pointer disappears after 8 s idle.',
   sit_confidence: 'Confidence-based pose only: birds perch at or above this detection confidence and fly below it. Ignored by the other pose rules.',
-  bird_pose: 'Which rule decides sitting vs. flying. Confidence: perch when heard clearly (the slider below). New birds fly: birds just back after a long silence fly, the established flock perches. Ring flow overrides this - it flies everyone.',
-  bird_names: 'Caption birds with their name (from BirdNET-Go, in its configured species language). New birds: caption only species just back after a long silence. The collage reserves space for every caption, so labels never cover a neighbouring bird.',
-  new_badge: 'Mark new birds with a small “new” pill - with or without the name captions above.',
-  new_gone_days: 'A bird counts as new when it is heard again after at least this many days of silence. A first-ever bird always qualifies. Default 30.',
-  new_shown_days: 'How long a bird stays marked as new after being heard again. Default 3 days.',
+  bird_pose: 'Which rule decides sitting vs. flying. Confidence: perch when heard clearly (the slider below). New birds fly: new birds (see the “New birds” section) fly, the established flock perches. Ring flow overrides this - it flies everyone.',
+  bird_names: 'Caption birds with their name (from BirdNET-Go, in its configured species language). “New birds only” captions just the new birds - what counts as new is defined in the “New birds” section. The collage reserves space for every caption, so labels never cover a neighbouring bird.',
+  new_badge: 'Mark every new bird with a small “new” pill - works with or without the name captions.',
+  new_gone_days: 'THE definition of a new bird, used by the badge, “New birds only” names, and the “New birds fly” pose: a bird is new when heard again after at least this many days of silence. A first-ever bird always qualifies. Default 30; 90 flags only birds gone a whole season.',
+  new_shown_days: 'How long a bird stays “new” after being heard again, before it blends back into the flock. Default 3 days.',
   audio_boost: "Detection clips are quiet; this boosts playback up to +48 dB (0 dB = off), compressed to curb clipping. Faint clips get much louder; the loudest can distort a little near the top - ease off if so.",
   tap_action: "What tapping a bird does. Default opens the info modal and plays the reference call. Call/both need a Xeno-Canto key; without one they fall back to just opening info.",
   xeno_canto_key: "Default (blank): reference calls off. A free key from xeno-canto.org/account turns them on - a clean example call to compare against your station's own captures.",

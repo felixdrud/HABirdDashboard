@@ -122,21 +122,23 @@ window.AV_CONFIG = {
   // static page: ?names=all / ?names=new / ?names=none.
   birdNames: 'none',
 
-  // Mark "new" species with a small "new" pill at the bird. Independent
-  // of birdNames: badge without names, names without badge, or both
-  // (with names on, the pill rides in front of the name).
-  newBadge: false,
-
+  // ---- New birds: ONE definition, three consumers ----
   // What "new" means - the returning-gap rule. A species is new when it
   // is heard again after at least newGoneDays days of silence (a bird
   // never heard before qualifies automatically), and it stays new for
   // newShownDays days after the return. So a migrant back from the
   // winter is flagged for a few days, then blends back into the flock.
-  // Used by birdNames: 'new', newBadge, and birdPose: 'new'. Both are
+  // This single definition drives everything "new": birdNames: 'new'
+  // above, the newBadge pill below, and birdPose: 'new'. Both values are
   // independent of the collage's time window. Day-granular BirdNET-Go
   // analytics make the thresholds fuzzy by up to a day.
   newGoneDays: 30,
   newShownDays: 3,
+
+  // Mark every new species with a small "new" pill at the bird.
+  // Independent of birdNames: badge without names, names without badge,
+  // or both (with names on, the pill rides in front of the name).
+  newBadge: false,
 
   // Collage fill: how much of the screen the flock claims, as a rough
   // fraction of the viewport area (0.1 - 1.0). 0.5 (the default) targets

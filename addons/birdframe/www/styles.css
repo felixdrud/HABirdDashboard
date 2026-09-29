@@ -612,6 +612,10 @@
     font: 700 0.7em/1 var(--av-font-mono);
     letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--paper); background: var(--accent);
+    /* The parent caption's paper-tinted text-shadow exists to lift the
+       bare NAME off busy plumage; on this pill it just smears - the
+       accent background already guarantees contrast. */
+    text-shadow: none;
     padding: 0.22em 0.6em; border-radius: 999px;
     margin-right: 0.55em;
     vertical-align: 0.18em;

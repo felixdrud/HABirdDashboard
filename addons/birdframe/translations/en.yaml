@@ -72,27 +72,28 @@ configuration:
     description: >-
       Caption birds with their name - BirdNET-Go's common name, in the species
       language BirdNET-Go is configured for. "none" (default) keeps the pure
-      art look. "new" captions only new birds (heard again after a long
-      silence - see the two "new" settings below). "all" captions every bird.
+      art look. "new" captions only the new birds - what counts as new is
+      defined by the "New birds" settings below. "all" captions every bird.
       The collage reserves space for every caption, so labels never cover a
       neighbouring bird.
-  new_badge:
-    name: Mark new birds ("new" badge)
-    description: >-
-      Put a small "new" pill on birds heard again after a long silence -
-      returning migrants and first-ever visitors. Works with or without the
-      name captions above.
   new_gone_days:
-    name: New = silent for at least (days)
+    name: 'New birds: silent for at least (days)'
     description: >-
-      A bird counts as "new" when it is heard again after at least this many
-      days of silence. A bird never heard before always qualifies. Default 30 -
-      set 90 to flag only birds gone a whole season.
+      THE definition of a "new" bird - shared by the badge below, the "new"
+      mode of "Show bird names", and the "New birds heard" pose rule. A bird
+      is new when it is heard again after at least this many days of silence;
+      a bird never heard before always qualifies. Default 30 - set 90 to flag
+      only birds gone a whole season.
   new_shown_days:
-    name: '"New" lasts for (days)'
+    name: 'New birds: marked for (days)'
     description: >-
-      How long a bird stays marked as "new" after being heard again, before it
-      blends back into the flock. Default 3.
+      How long a bird stays "new" after being heard again, before it blends
+      back into the flock. Default 3.
+  new_badge:
+    name: 'New birds: show "new" badge'
+    description: >-
+      Put a small "new" pill on every new bird - returning migrants and
+      first-ever visitors. Works with or without the name captions above.
   show_caption:
     name: Caption
     description: >-
@@ -114,9 +115,9 @@ configuration:
     description: >-
       Which rule decides each bird's pose (ring flow overrides it - a wheeling
       flock flies everyone). "confidence" (default) perches birds heard clearly
-      (the "Perch confidence" threshold below). "new" flies the new birds
-      (heard again after a long silence) and perches the established flock.
-      "sit" / "fly" force one pose for every bird.
+      (the "Perch confidence" threshold below). "new" flies the new birds - as
+      defined by the "New birds" settings above - and perches the established
+      flock. "sit" / "fly" force one pose for every bird.
   sit_confidence:
     name: Perch confidence
     description: >-

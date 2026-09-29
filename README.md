@@ -253,10 +253,12 @@ collage_spacing: 0           # gap between birds 0-1 (0 = tightest/default, high
 bird_names: none             # caption birds with their name (from BirdNET-Go, in its
                              #   species language) - none (default) | new (only the
                              #   "new" birds) | all (every bird)
-new_badge: false             # small "new" pill on new birds - independent of bird_names
+# What "new" means - ONE definition shared by bird_names: new, the badge
+# below and bird_pose: new:
 new_gone_days: 30            # "new" = heard again after at least this many days of
                              #   silence (first-ever birds always qualify)
 new_shown_days: 3            # how long a bird stays "new" after being heard again
+new_badge: false             # small "new" pill on new birds - independent of bird_names
 tap_action: both             # both (open details + play call, default) |
                              #   info (details only) | call (reference call only)
 xeno_canto_key: ""           # free key from xeno-canto.org/account; enables the
